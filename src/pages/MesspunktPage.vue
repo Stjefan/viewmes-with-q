@@ -1,0 +1,439 @@
+<template>
+  <q-page padding>
+    <!-- content -->
+    <div class="row">
+      <q-input
+        type="datetime-local"
+        :model-value="selectedTimePoint"
+        step="1"
+        @update:model-value="foo"
+      />
+      <q-select
+        :options="messpunktOptions"
+        v-model="selectedMesspunkt"
+        class="col-3"
+        label="Messpunkt"
+        option-label="name"
+      />
+      <q-input
+        type="number"
+        v-model.number="maxYAxisResu"
+        label="Max. Y-Achse LAFeq"
+      />
+      <q-input
+        type="number"
+        v-model.number="intervalYAxisResu"
+        label="Intervall Y-Achse LAFeq"
+      />
+      <q-input
+        type="number"
+        v-model.number="maxYAxisTerz"
+        label="Max. Y-Achse Terzfrequenzen"
+      />
+      <q-input
+        type="number"
+        v-model.number="intervalYAxisTerz"
+        label="Intervall Y-Achse Terzfrequenzen"
+      />
+    </div>
+    <div id="resuPlot" style="height: 40vh" />
+    <div id="terzPlot" style="height: 40vh" />
+  </q-page>
+</template>
+
+<script>
+import Plotly from "plotly.js";
+import { onMounted, ref, watch, computed } from "vue";
+import { api } from "../boot/axios";
+const dayjs = require("dayjs");
+import { useQuasar } from "quasar";
+import { useStore } from "vuex";
+
+export default {
+  // name: 'PageName',
+  setup() {
+    const store = useStore();
+    const $q = useQuasar();
+
+    const currentDateTime = `2022-07-11T07:00:00`;
+    const currentDay = dayjs(currentDateTime)
+      .format("YYYY-MM-DDTHH:mm:ss")
+      .replaceAll(":", "%3A");
+
+    let currentTerzData = null;
+
+    const intervalYAxisTerz = ref(60);
+    const maxYAxisTerz = ref(60);
+
+    const intervalYAxisResu = ref(60);
+    const maxYAxisResu = ref(60);
+
+    const messpunktOptions = store.state.example.messpunktOptions; // ["MP 1", "MP 2", "MP 3", "MP 4", "MP 5", "MP 6"];
+    const selectedMesspunkt = ref(messpunktOptions[0]);
+
+    const selectedTimePoint = computed(() =>
+      dayjs(store.state.example.currentlySelectedDateTime).format(
+        "YYYY-MM-DDTHH:mm:ss"
+      )
+    );
+
+    const selectedTimePointRoundedTo15min = computed(() => {
+      const parsed = dayjs(selectedTimePoint.value);
+      const roundedMinute = Math.floor(parsed.minute() / 15) * 15;
+
+      const doesSetterNotWork = parsed.minute(roundedMinute);
+      const doesSetterNotWorkPart2 = doesSetterNotWork.second(0);
+
+      const result = doesSetterNotWorkPart2.format("YYYY-MM-DDTHH:mm:ss");
+      return result;
+    });
+
+    onMounted(() => {
+      createTerzChart();
+      createResuCharts(onClickOnResuPoint);
+      return plotMesspunktEvaluation(
+        selectedMesspunkt.value,
+        selectedTimePointRoundedTo15min.value,
+        selectedTimePoint.value
+      );
+    });
+
+    function onClickOnResuPoint(arg) {
+      console.log(arg);
+      //selectedTimePoint.value
+      foo(dayjs(arg.points[0].x).format("YYYY-MM-DDTHH:mm:ss"));
+      updateTerzData(
+        selectedTimePoint.value,
+        currentTerzData[selectedTimePoint.value]
+      );
+    }
+
+    watch([selectedMesspunkt, selectedTimePointRoundedTo15min], (newVal) => {
+      plotMesspunktEvaluation(
+        selectedMesspunkt.value,
+        selectedTimePointRoundedTo15min.value,
+        selectedTimePoint.value
+      );
+    });
+
+    watch(
+      [selectedTimePoint, selectedTimePointRoundedTo15min],
+      (newVal, oldVal) => {
+        console.log("selectedTimePoint changed", newVal, oldVal);
+        if (oldVal[1] === newVal[1]) {
+          updateTerzData(
+            selectedTimePoint.value,
+            currentTerzData[selectedTimePoint.value]
+          );
+        }
+        // plotMesspunktEvaluation(selectedTimePointRoundedTo15min.value);
+      }
+    );
+
+    watch([maxYAxisResu, intervalYAxisResu], () => {
+      updateLayout("resuPlot", {
+        "yaxis.range": [
+          maxYAxisResu.value - intervalYAxisResu.value,
+          maxYAxisResu.value,
+        ], // updates the end of the yaxis range)
+      });
+    });
+
+    watch([maxYAxisTerz, intervalYAxisTerz], () => {
+      updateLayout("terzPlot", {
+        "yaxis.range": [
+          maxYAxisTerz.value - intervalYAxisTerz.value,
+          maxYAxisTerz.value,
+        ], // updates the end of the yaxis range)
+      });
+    });
+    const leftJoin = (objArr1, objArr2, key1, key2) => {
+      // O(n^2) - left join
+      console.log(objArr1, objArr2, key1, key2);
+      return objArr1.map((anObj1) => ({
+        ...objArr2.find((anObj2) => anObj1[key1] === anObj2[key2]),
+        ...anObj1,
+      }));
+    };
+
+    const leftJoinExtended = (objArr1, objArr2, key1, key2a, key2b) => {
+      // Poor man's interval marking
+      console.log(objArr1, objArr2, key1, key2a);
+      return objArr1.map((anObj1) => ({
+        ...objArr2.find(
+          (anObj2) =>
+            anObj1[key1] === anObj2[key2a] || anObj1[key1] === anObj2[key2b]
+        ),
+        ...anObj1,
+      }));
+    };
+
+    function plotMesspunktEvaluation(
+      selectedMesspunkt,
+      selectedDatetimeRoundedTo15min,
+      selectedDateTime
+    ) {
+      $q.loading.show();
+      const currentDateTime = dayjs(selectedDatetimeRoundedTo15min)
+        .format("YYYY-MM-DDTHH:mm:ss")
+        .replaceAll(":", "%3A");
+      const fifteenMinutesLater = dayjs(selectedDatetimeRoundedTo15min)
+        .add(15, "minute")
+        .format("YYYY-MM-DDTHH:mm:ss")
+        .replaceAll(":", "%3A");
+
+      return Promise.all([
+        api.get(
+          `http://localhost:8000/dauerauswertung/resu?datetime__gte=${currentDateTime}&datetime__lte=${fifteenMinutesLater}&&messpunkt__name=${selectedMesspunkt}`
+        ),
+        api.get(
+          `http://localhost:8000/dauerauswertung/terz?datetime__gte=${currentDateTime}&datetime__lte=${fifteenMinutesLater}&messpunkt__name=${selectedMesspunkt}`
+        ),
+        api.get(
+          `http://localhost:8000/dauerauswertung/erkennung?start__gte=${currentDateTime}&end__lte=${fifteenMinutesLater}`
+        ),
+        api.get(
+          `http://localhost:8000/dauerauswertung/aussortierung?datetime__gte=${currentDateTime}&datetime__lte=${fifteenMinutesLater}`
+        ),
+      ])
+        .then(([resuCall, terzCall, erkennungCall, aussortierungCall]) => {
+          console.log("Aussortierung", erkennungCall, aussortierungCall);
+          console.log(resuCall);
+          console.log({ resu: resuCall.data, terz: terzCall.data });
+          console.log("Promise ended");
+          const resuData = resuCall.data;
+          const terzData = terzCall.data;
+
+          var merged = leftJoin(
+            resuCall.data.response,
+            aussortierungCall.data,
+            "datetime",
+            "datetime"
+          );
+
+          console.log();
+          for (let e of erkennungCall.data.results) {
+            const startingElement = merged.findIndex(
+              (i) => i.datetime === e.start
+            );
+            const endingElement = merged.findIndex((i) => i.datetime === e.end);
+            console.log("Erkennugnen", startingElement, endingElement);
+            for (let ix = startingElement; ix < endingElement; ix++) {
+              merged[ix].vorbeifahrt = true;
+            }
+          }
+
+          var moreMerged = leftJoinExtended(
+            resuCall.data.response,
+            erkennungCall.data.results,
+            "datetime",
+            "start"
+          );
+          console.log(moreMerged);
+          console.log("Merged", merged);
+          updateResuData(
+            resuData.datetime,
+            resuData.lafeq,
+            merged.map((i) => (i.vorbeifahrt ? i.lafeq : null)),
+            merged.map((i) => (i.reason != null ? i.lafeq : null))
+          );
+          console.log(terzData, selectedDateTime);
+          currentTerzData = terzData;
+          updateTerzData(selectedDateTime, currentTerzData[selectedDateTime]);
+        })
+        .finally(() => {
+          $q.loading.hide();
+        });
+    }
+
+    const frequencies = [
+      "20.00 Hz",
+      "25.00 Hz",
+      "31.50 Hz",
+      "40.00 Hz",
+      "50.00 Hz",
+      "63.00 Hz",
+      "80.00 Hz",
+      "100.00 Hz",
+      "125.00 Hz",
+      "160.00 Hz",
+      "200.00 Hz",
+      "250.00 Hz",
+      "315.00 Hz",
+      "400.00 Hz",
+      "500.00 Hz",
+      "630.00 Hz",
+      "800.00 Hz",
+      "1000.00 Hz",
+      "1.25 kHz",
+      "1.60 kHz",
+      "2.00 kHz",
+      "2.50 kHz",
+      "3.15 kHz",
+      "4.00 kHz",
+      "5.00 kHz",
+      "6.30 kHz",
+      "8.00 kHz",
+      "10.00 kHz",
+      "12.50 kHz",
+      "16.00 kHz",
+      "20.00 kHz",
+      // "Gesamt",
+    ];
+
+    function updateResuData(
+      datetime_arr,
+      lafeq_arr,
+      vorbeifahrt_arr = [],
+      aussortiert_arr = []
+    ) {
+      console.log("updateResu", datetime_arr, lafeq_arr, aussortiert_arr);
+      console.log(aussortiert_arr);
+
+      // Plotly.deleteTraces(graphDiv, [...graphDiv.data.keys()]);
+
+      const data_update = {
+        x: datetime_arr.length == 0 ? [] : [datetime_arr],
+        y:
+          datetime_arr.length == 0
+            ? []
+            : [lafeq_arr, vorbeifahrt_arr, aussortiert_arr],
+        // mode: "markers",
+        // marker: { size: 16 },
+      };
+      console.log("...", data_update);
+
+      const layout_update = {
+        //"xaxis.range": [0, 10], // updates the xaxis range
+      };
+
+      const graphDiv = document.getElementById("resuPlot");
+      Plotly.update(graphDiv, data_update, layout_update, [0, 1, 2]);
+    }
+    function updateTerzData(selectedDateTime, data) {
+      console.log("updateTerzData???", data);
+      let data_update = {
+        y: [],
+        // mode: "markers",
+        // marker: { size: 16 },
+        marker: {
+          color: "rgb(142,124,195)",
+        },
+      };
+      if (data == null) {
+        data_update.y = [[]];
+      } else {
+        data_update.y = [data];
+      }
+
+      const layout_update = {
+        title: `Terze um ${dayjs(selectedDateTime).format("HH:mm:ss")}`,
+        //"xaxis.range": [0, 10], // updates the xaxis range
+      };
+      const graphDiv = document.getElementById("terzPlot");
+      Plotly.update(graphDiv, data_update, layout_update, [0]);
+    }
+
+    function updateTerzLayout(newTitle) {
+      const graphDiv = document.getElementById("terzPlot");
+      var update = {
+        title: newTitle, // updates the title
+        // "xaxis.range": [0, 5], // updates the xaxis range
+        // "yaxis.range[1]": 15, // updates the end of the yaxis range
+      };
+      Plotly.relayout(graphDiv, update);
+    }
+
+    function updateLayout(target, args) {
+      console.log("updateLayout", target, args);
+      const graphDiv = document.getElementById(target);
+      Plotly.relayout(graphDiv, args);
+    }
+
+    function createTerzChart() {
+      var data = [
+        {
+          x: frequencies,
+          y: [],
+          type: "bar",
+        },
+      ];
+      let layout = {
+        title: "Terz-Frequenzen",
+        yaxis: { range: [30, 60] },
+      };
+      Plotly.newPlot("terzPlot", data, layout, { responsive: true });
+    }
+    function createResuCharts(on_click_cb) {
+      const myPlot = document.getElementById("resuPlot");
+
+      let x = []; //plotData.map((i) => i.ms);
+      let y1 = []; //plotData.map((i) => i.lafeq);
+      let y2 = []; //plotData.map((i) => i.aussortiert);
+      let y3 = []; //plotData.map((i) => i.erkennung);
+
+      let data = [
+        {
+          x: [],
+          y: [],
+          // mode: "markers",
+          type: "scatter",
+          name: "LAFeq",
+          showlegend: true,
+          // mode: "markers",
+          // marker: { size: 16 },
+        },
+        {
+          x: x,
+          y: y2,
+          type: "scatter",
+          name: "Vorbeifahrt (Immendingen MP 5)",
+          // mode: "markers",
+          showlegend: true,
+        },
+        {
+          x: x,
+          y: y3,
+          type: "scatter",
+          name: "Aussortiert",
+          showlegend: true,
+          // mode: "markers",
+        },
+      ];
+      let layout = {
+        hovermode: "closest",
+        title: "",
+        xaxis: {
+          type: "date",
+        },
+        legend: { orientation: "h" },
+        // yaxis: { range: [maxYAxis - intervalYAxis, maxYAxis] },
+      };
+
+      Plotly.newPlot(myPlot, data, layout, {
+        locale: "de",
+        responsive: true,
+      });
+      if (on_click_cb != null) {
+        myPlot.on("plotly_click", on_click_cb);
+      }
+    }
+
+    function foo(args) {
+      store.commit("setDate", args);
+    }
+
+    return {
+      foo,
+      selectedTimePoint,
+      selectedTimePointRoundedTo15min,
+      intervalYAxisTerz,
+      maxYAxisTerz,
+      intervalYAxisResu,
+      maxYAxisResu,
+      selectedMesspunkt,
+      messpunktOptions,
+    };
+  },
+};
+</script>
