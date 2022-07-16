@@ -12,6 +12,10 @@ function updatePlotlyLayout(target, args) {
   Plotly.relayout(graphDiv, args);
 }
 
+import {
+  InfluxDB,
+  FluxTableMetaData,
+} from "@influxdata/influxdb-client-browser";
 import { onMounted, ref, watch, computed } from "vue";
 import { api } from "../boot/axios";
 const dayjs = require("dayjs");
@@ -32,7 +36,44 @@ export default {
     onMounted(() => {
       console.log("On mounted");
       createMetePlot();
-      plotMete(currentDate.value);
+      // plotMete(currentDate.value);
+      const url = "http://localhost:8086";
+      const token =
+        "0ql08EobRW6A23j97jAkLyqNKIfQIKJS9_Wrw4mWIqBu795dl4cSfaykizl261h-QwY9BPDMUXbDCuFzlPQsfg==";
+      const org = "kufi";
+      const bucket = "dauerauswertung_immendingen";
+      const nextDay = dayjs(targetDate).add(1, "day").format("YYYY-MM-DD");
+      const fifteenMinutesLater = dayjs(targetDate)
+        .add(15, "minute")
+        .format("YYYY-MM-DDThh:mm:ssZ");
+
+      const queryApi = new InfluxDB({ url, token }).getQueryApi(org);
+      const fluxQuery = `from(bucket: "dauerauswertung_immendingen") |> range(start: ${currentDate.value}, stop: ${nextDay}) |> filter(fn: (r) => r["_measurement"] == "messwerte_immendingen_mete") |> aggregateWindow(every: 300s, fn: mean)`;
+      const fluxQueryMete = "";
+      const fluxQueryLr = "";
+      const fluxQueryResu = "";
+      const fluxQueryTerz = "";
+      const fluxQueryAussortiert = "";
+      const fluxQueryErkennung = "";
+      console.log("** QUERY ROWS ***");
+      queryApi.queryRows(fluxQuery, {
+        next(row, tableMeta) {
+          const o = tableMeta.toObject(row);
+          console.log(o);
+          // console.log(JSON.stringify(o, null, 2))
+          console.log(
+            row
+            //`${o._time} ${o._measurement} in '${o.location}' (${o.example}): ${o._field}=${o._value}`
+          );
+        },
+        error(error) {
+          console.error(error);
+          console.log("\nFinished ERROR");
+        },
+        complete() {
+          console.log("\nFinished SUCCESS");
+        },
+      });
     });
 
     watch(currentDate, (newVal, oldVal) => {
@@ -43,9 +84,14 @@ export default {
     function plotMete(targetDate) {
       $q.loading.show();
       const nextDay = dayjs(targetDate).add(1, "day").format("YYYY-MM-DD");
+      const project_name = "immendingen";
+      const query = `http://localhost:8086/query?db=dauerauswertung_immendingen&q=Select * from messwerte_${project_name}_mete where time >= '${targetDate}' AND time <= '${nextDay}'`;
+      console.log("Query for Influx:", query);
+
       return api
         .get(
-          `http://localhost:8000/dauerauswertung/metecharts/?datetime__gt=${targetDate}&datetime__lt=${nextDay}`
+          query
+          // `http://localhost:8000/dauerauswertung/metecharts/?datetime__gt=${targetDate}&datetime__lt=${nextDay}`
         )
         .then((meteCall) => {
           console.log("results", meteCall.data);
