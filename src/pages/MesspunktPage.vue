@@ -184,10 +184,10 @@ export default {
 
       return Promise.all([
         api.get(
-          `http://localhost:8000/dauerauswertung/resu?datetime__gte=${currentDateTime}&datetime__lte=${fifteenMinutesLater}&&messpunkt__name=${selectedMesspunkt}`
+          `http://localhost:8000/dauerauswertung/resu?datetime__gte=${currentDateTime}&datetime__lte=${fifteenMinutesLater}&&messpunkt__name=${selectedMesspunkt.name_in_api}`
         ),
         api.get(
-          `http://localhost:8000/dauerauswertung/terz?datetime__gte=${currentDateTime}&datetime__lte=${fifteenMinutesLater}&messpunkt__name=${selectedMesspunkt}`
+          `http://localhost:8000/dauerauswertung/terz?datetime__gte=${currentDateTime}&datetime__lte=${fifteenMinutesLater}&messpunkt__name=${selectedMesspunkt.name_in_api}`
         ),
         api.get(
           `http://localhost:8000/dauerauswertung/erkennung?start__gte=${currentDateTime}&end__lte=${fifteenMinutesLater}`

@@ -100,17 +100,39 @@ export const config_immendingen = {
   initial_map_position: [47.912783, 8.728536],
   project_id: 1,
   mps: [
-    { id: 1, name: "MP 1 - Handlingkurs", position: [47.912783, 8.728536] },
-    { id: 2, name: "MP 2 - Bertha Leitstand", position: [47.91799, 8.71139] },
-    { id: 3, name: "MP 3 - Stadtstraße", position: [47.928551, 8.725036] },
-    { id: 4, name: "MP 4 - Innenstadt", position: [47.919428, 8.738175] },
+    {
+      id: 1,
+      name: "MP 1 - Handlingkurs",
+      name_in_api: "Immendingen MP 1",
+      position: [47.912783, 8.728536],
+    },
+    {
+      id: 2,
+      name: "MP 2 - Bertha Leitstand",
+      name_in_api: "Immendingen MP 2",
+      position: [47.91799, 8.71139],
+    },
+    {
+      id: 3,
+      name: "MP 3 - Stadtstraße",
+      name_in_api: "Immendingen MP 3",
+      position: [47.928551, 8.725036],
+    },
+    {
+      id: 4,
+      name: "MP 4 - Innenstadt",
+      name_in_api: "Immendingen MP 4",
+      position: [47.919428, 8.738175],
+    },
     {
       id: 5,
       name: "MP 5 - Fernstraßenoval",
+      name_in_api: "Immendingen MP 5",
       position: [47.920379146443693, 8.72609453922426],
     },
     {
       id: 6,
+      name_in_api: "Immendingen MP 6",
       name: "MP 6 - Stadtraße Heidestrecke",
       position: [47.930765, 8.739706],
     },

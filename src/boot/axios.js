@@ -197,6 +197,13 @@ function aussortierungInterceptor(response) {
 // for each client)
 // const api = axios.create({ baseURL: 'https://api.example.com' })
 
+const token =
+  "0ql08EobRW6A23j97jAkLyqNKIfQIKJS9_Wrw4mWIqBu795dl4cSfaykizl261h-QwY9BPDMUXbDCuFzlPQsfg==";
+const org = "kufi";
+const bucket = "dauerauswertung_immendingen";
+const headers = { Authorization: `Token ${token}` };
+axios.defaults.headers.common["Authorization"] = `Token ${token}`;
+
 export default boot(({ app }) => {
   // for use inside Vue files (Options API) through this.$axios and this.$api
 
