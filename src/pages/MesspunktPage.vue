@@ -44,10 +44,11 @@
 <script>
 import Plotly from "plotly.js";
 import { onMounted, ref, watch, computed } from "vue";
-import { api } from "../boot/axios";
+import { api, queryApi } from "../boot/axios";
 const dayjs = require("dayjs");
 import { useQuasar } from "quasar";
 import { useStore } from "vuex";
+import { terzProps } from "../boot/utility";
 
 export default {
   // name: 'PageName',
@@ -79,6 +80,7 @@ export default {
 
     const selectedTimePointRoundedTo15min = computed(() => {
       const parsed = dayjs(selectedTimePoint.value);
+      console.log("Parsed", parsed, selectedTimePoint.value);
       const roundedMinute = Math.floor(parsed.minute() / 15) * 15;
 
       const doesSetterNotWork = parsed.minute(roundedMinute);
@@ -91,11 +93,23 @@ export default {
     onMounted(() => {
       createTerzChart();
       createResuCharts(onClickOnResuPoint);
-      return plotMesspunktEvaluation(
+      plotMesspunktEvaluation(
         selectedMesspunkt.value,
         selectedTimePointRoundedTo15min.value,
         selectedTimePoint.value
       );
+      updateLayout("resuPlot", {
+        "yaxis.range": [
+          maxYAxisResu.value - intervalYAxisResu.value,
+          maxYAxisResu.value,
+        ], // updates the end of the yaxis range)
+      });
+      updateLayout("terzPlot", {
+        "yaxis.range": [
+          maxYAxisTerz.value - intervalYAxisTerz.value,
+          maxYAxisTerz.value,
+        ], // updates the end of the yaxis range)
+      });
     });
 
     function onClickOnResuPoint(arg) {
@@ -151,7 +165,7 @@ export default {
       // O(n^2) - left join
       console.log(objArr1, objArr2, key1, key2);
       return objArr1.map((anObj1) => ({
-        ...objArr2.find((anObj2) => anObj1[key1] === anObj2[key2]),
+        joined: objArr2.find((anObj2) => anObj1[key1] === anObj2[key2]),
         ...anObj1,
       }));
     };
@@ -174,76 +188,152 @@ export default {
       selectedDateTime
     ) {
       $q.loading.show();
+      console.log(
+        "plotMesspunktEvaluation",
+        selectedMesspunkt,
+        selectedDatetimeRoundedTo15min,
+        selectedDateTime
+      );
       const currentDateTime = dayjs(selectedDatetimeRoundedTo15min)
         .format("YYYY-MM-DDTHH:mm:ss")
         .replaceAll(":", "%3A");
-      const fifteenMinutesLater = dayjs(selectedDatetimeRoundedTo15min)
-        .add(15, "minute")
-        .format("YYYY-MM-DDTHH:mm:ss")
-        .replaceAll(":", "%3A");
+      const fifteenMinutesLater =
+        dayjs(selectedDatetimeRoundedTo15min)
+          .add(15, "minute")
+          .format("YYYY-MM-DDTHH:mm:ss") + "Z";
+
+      const targetDate =
+        dayjs(selectedDatetimeRoundedTo15min).format("YYYY-MM-DDTHH:mm:ss") +
+        "Z";
+
+      console.log("Interval to fetch", targetDate, fifteenMinutesLater);
+
+      const fluxQueryResu = `from(bucket: "dauerauswertung_immendingen")
+  |> range(start: ${targetDate}, stop: ${fifteenMinutesLater})
+  |> filter(fn: (r) => r["_measurement"] == "messwerte_immendingen_resu")
+  |> filter(fn: (r) => r["_field"] == "lafeq")
+  |> filter(fn: (r) => r["messpunkt"] == "${selectedMesspunkt.name_in_api}")`;
+      const fluxQueryTerz = `from(bucket: "dauerauswertung_immendingen")
+  |> range(start: ${targetDate}, stop: ${fifteenMinutesLater})
+  |> filter(fn: (r) => r["_measurement"] == "messwerte_immendingen_terz")
+  |> filter(fn: (r) => r["messpunkt"] == "${selectedMesspunkt.name_in_api}")`;
+      const fluxQueryAussortiert = `from(bucket: "dauerauswertung_immendingen")
+  |> range(start: ${targetDate}, stop: ${fifteenMinutesLater})
+  |> filter(fn: (r) => r["_measurement"] == "auswertung_immendingen_aussortierung")`;
+      const fluxQueryErkennung = `from(bucket: "dauerauswertung_immendingen")
+  |> range(start: ${targetDate}, stop: ${fifteenMinutesLater})
+  |> filter(fn: (r) => r["_measurement"] == "auswertung_immendingen_erkennung")
+ |> sort(columns: ["_time"], desc: false)`;
 
       return Promise.all([
-        api.get(
-          `http://localhost:8000/dauerauswertung/resu?datetime__gte=${currentDateTime}&datetime__lte=${fifteenMinutesLater}&&messpunkt__name=${selectedMesspunkt.name_in_api}`
-        ),
-        api.get(
-          `http://localhost:8000/dauerauswertung/terz?datetime__gte=${currentDateTime}&datetime__lte=${fifteenMinutesLater}&messpunkt__name=${selectedMesspunkt.name_in_api}`
-        ),
-        api.get(
-          `http://localhost:8000/dauerauswertung/erkennung?start__gte=${currentDateTime}&end__lte=${fifteenMinutesLater}`
-        ),
-        api.get(
-          `http://localhost:8000/dauerauswertung/aussortierung?datetime__gte=${currentDateTime}&datetime__lte=${fifteenMinutesLater}`
-        ),
+        queryApi.collectRows(fluxQueryResu),
+        queryApi.collectRows(fluxQueryTerz),
+        queryApi.collectRows(fluxQueryAussortiert),
+        queryApi.collectRows(fluxQueryErkennung),
       ])
-        .then(([resuCall, terzCall, erkennungCall, aussortierungCall]) => {
-          console.log("Aussortierung", erkennungCall, aussortierungCall);
-          console.log(resuCall);
-          console.log({ resu: resuCall.data, terz: terzCall.data });
-          console.log("Promise ended");
-          const resuData = resuCall.data;
-          const terzData = terzCall.data;
 
-          var merged = leftJoin(
-            resuCall.data.response,
-            aussortierungCall.data,
-            "datetime",
-            "datetime"
+        .then(([rowsResu, rowsTerz, rowsAussortiert, rowsErkennung]) => {
+          console.log(
+            "loaded data",
+            rowsResu,
+            rowsTerz,
+            rowsAussortiert,
+            rowsErkennung
           );
 
-          console.log();
-          for (let e of erkennungCall.data.results) {
-            const startingElement = merged.findIndex(
-              (i) => i.datetime === e.start
-            );
-            const endingElement = merged.findIndex((i) => i.datetime === e.end);
-            console.log("Erkennugnen", startingElement, endingElement);
-            for (let ix = startingElement; ix < endingElement; ix++) {
-              merged[ix].vorbeifahrt = true;
-            }
+          const merged_aussortiert = leftJoin(
+            rowsResu,
+            rowsAussortiert,
+            "_time",
+            "_time"
+          );
+
+          console.log("Joined", merged_aussortiert);
+
+          const groupedErkennung = _.groupBy(rowsErkennung, "_time");
+          const modifiedGroupedErkennung = {};
+          console.log("groupedErkennung", groupedErkennung);
+          for (let g in groupedErkennung) {
+            modifiedGroupedErkennung[g] = {
+              start: groupedErkennung[g].find((i) => i._field == "start")
+                ._value,
+
+              end: groupedErkennung[g].find((i) => i._field == "stop")._value,
+            };
           }
 
-          var moreMerged = leftJoinExtended(
-            resuCall.data.response,
-            erkennungCall.data.results,
-            "datetime",
-            "start"
-          );
-          console.log(moreMerged);
-          console.log("Merged", merged);
+          console.log("modifiedGroupedErkennung", modifiedGroupedErkennung);
+
+          const groupedTerz = _.groupBy(rowsTerz, "_time");
+          const modifiedGroupedTerz = {};
+          for (let g in groupedTerz) {
+            const fields = _.groupBy(groupedTerz[g], "_field");
+
+            const currTerzResults = [];
+            for (let p of terzProps) {
+              currTerzResults.push(fields[p][0]._value);
+            }
+
+            modifiedGroupedTerz[
+              dayjs.tz(dayjs(g.slice(0, -1))).format("YYYY-MM-DDTHH:mm:ss")
+            ] = currTerzResults;
+
+            groupedTerz[g] = currTerzResults;
+          }
+
+          console.log(rowsResu, groupedTerz, rowsAussortiert);
+
+          const resuData = {
+            datetime: rowsResu.map(
+              (i) =>
+                dayjs
+                  .tz(dayjs(i._time.slice(0, -1)))
+                  .format("YYYY-MM-DDTHH:mm:ss") + "Z"
+            ),
+            lafeq: rowsResu.map((i) => i._value),
+          };
+
+          let erkennungen = [];
+
+          let currIdx = 0;
+
+          for (let g in modifiedGroupedErkennung) {
+            let start = modifiedGroupedErkennung[g].start + "Z";
+            let end = modifiedGroupedErkennung[g].end + "Z";
+            let idxStart = rowsResu.findIndex((i) => i._time === start);
+            let idxStop = rowsResu.findIndex((i) => i._time === end);
+            if (currIdx >= idxStart) continue;
+            for (let i = currIdx; i < idxStart; i++) {
+              erkennungen.push(null);
+            }
+            for (let i = idxStart; i < idxStop; i++) {
+              erkennungen.push(rowsResu[i]._value);
+            }
+            console.log("Interval", idxStart, idxStop);
+            currIdx = idxStop;
+          }
+          console.log(erkennungen);
+
           updateResuData(
             resuData.datetime,
             resuData.lafeq,
-            merged.map((i) => (i.vorbeifahrt ? i.lafeq : null)),
-            merged.map((i) => (i.reason != null ? i.lafeq : null))
+
+            erkennungen, // merged.map((i) => (i.reason != null ? i.lafeq : null))
+            merged_aussortiert.map((i) => (i.joined ? i._value : null))
           );
-          console.log(terzData, selectedDateTime);
-          currentTerzData = terzData;
-          updateTerzData(selectedDateTime, currentTerzData[selectedDateTime]);
+          console.log(modifiedGroupedTerz, selectedDateTime);
+          currentTerzData = modifiedGroupedTerz;
+          updateTerzData(
+            selectedDateTime,
+            modifiedGroupedTerz[selectedDateTime]
+          );
         })
         .finally(() => {
           $q.loading.hide();
         });
+
+      if (false) {
+      }
     }
 
     const frequencies = [
@@ -296,7 +386,7 @@ export default {
         x: datetime_arr.length == 0 ? [] : [datetime_arr],
         y:
           datetime_arr.length == 0
-            ? []
+            ? [[], [], []]
             : [lafeq_arr, vorbeifahrt_arr, aussortiert_arr],
         // mode: "markers",
         // marker: { size: 16 },

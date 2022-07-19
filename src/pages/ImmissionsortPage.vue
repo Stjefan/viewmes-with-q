@@ -36,6 +36,13 @@ import { api } from "../boot/axios";
 const dayjs = require("dayjs");
 import { useQuasar } from "quasar";
 import { useStore } from "vuex";
+import _ from "lodash";
+
+import { config_immendingen } from "../boot/utility";
+import {
+  InfluxDB,
+  FluxTableMetaData,
+} from "@influxdata/influxdb-client-browser";
 
 export default {
   // name: 'PageName',
@@ -46,29 +53,29 @@ export default {
       dayjs(store.state.example.currentlySelectedDateTime).format("YYYY-MM-DD")
     ); // ref(dayjs().format("YYYY-MM-DD"));
 
-    const immissionsortOptions = ["IO 1", "IO 5", "IO 9", "IO 15", "IO 17"];
+    const immissionsortOptions = config_immendingen.ios;
     const selectedImmissionsort = ref(immissionsortOptions[0]);
     const intervalYAxisLr = ref(50);
     const maxYAxisLr = ref(50);
 
-    watch([maxYAxisLr, intervalYAxisLr, selectedImmissionsort], () => {
+    watch([maxYAxisLr, intervalYAxisLr], () => {
       updateLayout(
         currentDate.value,
         maxYAxisLr.value,
         intervalYAxisLr.value,
-        selectedImmissionsort.value
+        `IO ${selectedImmissionsort.value.id}`
       );
     });
 
-    watch(currentDate, (newVal, oldVal) => {
+    watch([currentDate, selectedImmissionsort], (newVal, oldVal) => {
       console.log("Wachting currentDate", newVal, oldVal);
       updateLayout(
         currentDate.value,
         maxYAxisLr.value,
         intervalYAxisLr.value,
-        selectedImmissionsort.value
+        `IO ${selectedImmissionsort.value.id}`
       );
-      plotLr(currentDate.value);
+      plotLr(selectedImmissionsort.value, currentDate.value);
     });
 
     function getHoursBeurteilungszeitraum(i) {
@@ -96,15 +103,22 @@ export default {
         currentDate.value,
         maxYAxisLr.value,
         intervalYAxisLr.value,
-        "IO 1"
+        `IO ${selectedImmissionsort.value.id}`
       );
-      plotLr(currentDate.value);
+      plotLr(selectedImmissionsort.value, currentDate.value);
     });
 
-    function plotLr(myDate) {
+    function plotLr(io, myDate) {
+      console.log(dayjs.locale("de"));
+      console.log(dayjs.locale());
       $q.loading.show();
       console.log("On mounted");
-      let immissionsort = "IO 1";
+      let immissionsort = `${io.id}`; // "IO 1";
+      const url = "http://localhost:8086";
+      const token =
+        "QRNlK60Noca9m2WIjgUSHaE3C1PGnzNZ-qHY1MajJBSDIjkpJdxPwJ1bG11cOYJREvLgEp8D5h_xH1AhvgvBww==";
+      const org = "kufi";
+      const queryApi = new InfluxDB({ url, token }).getQueryApi(org);
       // simplePlot();
       const idsBeurteilungszeitraum = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
@@ -112,48 +126,107 @@ export default {
         const { startingHour, endingHour } = getHoursBeurteilungszeitraum(i);
         console.log("startingHour", startingHour, endingHour);
 
-        const startBeurteilungszeitraum = dayjs(myDate)
-          .add(startingHour, "hour")
-          .format("YYYY-MM-DDTHH:mm:ss")
-          .replaceAll(":", "%3A");
-        const endBeurteilungszeitraum = dayjs(myDate)
-          .add(endingHour, "hour")
-          .format("YYYY-MM-DDTHH:mm:ss")
-          .replaceAll(":", "%3A");
-        return api.get(
-          `http://localhost:8000/dauerauswertung/lr?datetime__gt=${startBeurteilungszeitraum}&datetime__lt=${endBeurteilungszeitraum}&immissionsort__name=${immissionsort}`
-        );
+        const startBeurteilungszeitraum =
+          dayjs
+            .tz(dayjs(myDate), "Europe/Berlin")
+            .add(startingHour, "hour")
+            .format("YYYY-MM-DDTHH:mm:ss") + "Z";
+        const endBeurteilungszeitraum =
+          dayjs
+            .tz(dayjs(myDate), "Europe/Berlin")
+            .add(endingHour, "hour")
+            .format("YYYY-MM-DDTHH:mm:ss") + "Z";
+
+        console.log(startBeurteilungszeitraum, endBeurteilungszeitraum);
+
+        const verursachers = [
+          "gesamt",
+          "mp1_ohne_ereignis",
+          "mp2_ohne_ereignis",
+          "mp3_ohne_ereignis",
+          "mp4_ohne_ereignis",
+          "mp5_ohne_ereignis",
+          "mp5_vorbeifahrt",
+          "mp6_ohne_ereignis",
+        ];
+        const fluxQueryLr = `from(bucket: "dauerauswertung_immendingen")
+  |> range(start: ${startBeurteilungszeitraum}, stop: ${endBeurteilungszeitraum})
+  |> filter(fn: (r) => r["_measurement"] == "auswertung_immendingen_lr")
+  |> filter(fn: (r) => r["_field"] == "lr")
+  |> filter(fn: (r) => r["immissionsort"] == "${immissionsort}")`; //   |> filter(fn: (r) => r["verursacher"] == "${v}")
+
+        console.log(i, fluxQueryLr);
+
+        return queryApi.collectRows(fluxQueryLr);
+        if (false) {
+          return api.get(
+            `http://localhost:8000/dauerauswertung/lr?datetime__gt=${startBeurteilungszeitraum}&datetime__lt=${endBeurteilungszeitraum}&immissionsort__name=${immissionsort}`
+          );
+        }
       });
       return Promise.all(myPromiseArray).then((lrCalls) => {
         const totalResult = {};
         for (let beurteilungszeitraum of idsBeurteilungszeitraum) {
-          /*
-        let grouped = _.groupBy(lrCalls[beurteilungszeitraum].data, 'verursacht');
-        let result = {}
-        for (let v in grouped) {
-          result[v] = {
-            x: grouped[v].map((i) => i.datetime),
-            y: grouped[v].map((i) => i.lr),
+          let grouped = _.groupBy(lrCalls[beurteilungszeitraum], "verursacher");
+          let result = {};
+          for (let g in grouped) {
+            result[g] = {
+              x: grouped[g].map(
+                (i) =>
+                  dayjs
+                    .tz(dayjs(i._time.slice(0, -1)))
+                    .format("YYYY-MM-DDTHH:mm:ss") + "Z"
+              ),
+              y: grouped[g].map((i) => i._value),
+            };
           }
-        }
-        if (beurteilungszeitraum == 6) {
-          result["grenzwert"] = {
-            x: [new Date(myDate + "T" + `${(getBeurteilungszeitraumHours(beurteilungszeitraum)[0].toString()).padStart(2, '0')}:00`), new Date(myDate + "T" + `${(getBeurteilungszeitraumHours(beurteilungszeitraum)[1]).toString().padStart(2, '0')}:00`)],
-            y: [grenzwert_tag, grenzwert_tag]
+          console.log(result);
+          if (false) {
+            if (beurteilungszeitraum == 6) {
+              result["grenzwert"] = {
+                x: [
+                  new Date(
+                    myDate +
+                      "T" +
+                      `${getBeurteilungszeitraumHours(beurteilungszeitraum)[0]
+                        .toString()
+                        .padStart(2, "0")}:00`
+                  ),
+                  new Date(
+                    myDate +
+                      "T" +
+                      `${getBeurteilungszeitraumHours(beurteilungszeitraum)[1]
+                        .toString()
+                        .padStart(2, "0")}:00`
+                  ),
+                ],
+                y: [grenzwert_tag, grenzwert_tag],
+              };
+            } else {
+              result["grenzwert"] = {
+                x: [
+                  new Date(
+                    myDate +
+                      "T" +
+                      `${getBeurteilungszeitraumHours(beurteilungszeitraum)[0]
+                        .toString()
+                        .padStart(2, "0")}:00`
+                  ),
+                  new Date(
+                    myDate +
+                      "T" +
+                      `${getBeurteilungszeitraumHours(beurteilungszeitraum)[1]
+                        .toString()
+                        .padStart(2, "0")}:00`
+                  ),
+                ],
+                y: [grenzwert_nacht, grenzwert_nacht],
+              };
+            }
           }
 
-        } else {
-          result["grenzwert"] = {
-            x: [new Date(myDate + "T" + `${(getBeurteilungszeitraumHours(beurteilungszeitraum)[0].toString()).padStart(2, '0')}:00`), new Date(myDate + "T" + `${(getBeurteilungszeitraumHours(beurteilungszeitraum)[1]).toString().padStart(2, '0')}:00`)],
-            y: [grenzwert_nacht, grenzwert_nacht]
-          }
-
-        }
-
-        console.log(result);
-        */
-          totalResult[beurteilungszeitraum] =
-            lrCalls[beurteilungszeitraum].data;
+          console.log(result);
+          totalResult[beurteilungszeitraum] = result;
         }
         console.log(totalResult);
 
@@ -200,7 +273,7 @@ export default {
     }
 
     function updateChartData(updateData) {
-      console.log("updateChartData");
+      console.log("updateChartData", updateData);
       // console.log("Update data", updateData);
       const myTraces = [];
       const idsBeurteilungszeitraum = [0, 1, 2, 3, 4, 5, 6, 7, 8];
@@ -316,9 +389,14 @@ export default {
         title: "Beurteilungspegel",
 
         legend: {
-          x: 0.75,
-          y: 0.0,
+          x: 1,
+          y: 0.25,
+          xanchor: `auto`,
+          yanchor: `top`,
           // orientation: "h",
+          font: {
+            // size: 8,
+          },
         },
       };
       for (let i = 1; i < 10; i++) {

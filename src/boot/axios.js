@@ -197,12 +197,16 @@ function aussortierungInterceptor(response) {
 // for each client)
 // const api = axios.create({ baseURL: 'https://api.example.com' })
 
+import {
+  InfluxDB,
+  FluxTableMetaData,
+} from "@influxdata/influxdb-client-browser";
+
+const url = "http://localhost:8086";
 const token =
-  "0ql08EobRW6A23j97jAkLyqNKIfQIKJS9_Wrw4mWIqBu795dl4cSfaykizl261h-QwY9BPDMUXbDCuFzlPQsfg==";
+  "QRNlK60Noca9m2WIjgUSHaE3C1PGnzNZ-qHY1MajJBSDIjkpJdxPwJ1bG11cOYJREvLgEp8D5h_xH1AhvgvBww==";
 const org = "kufi";
-const bucket = "dauerauswertung_immendingen";
-const headers = { Authorization: `Token ${token}` };
-axios.defaults.headers.common["Authorization"] = `Token ${token}`;
+const queryApi = new InfluxDB({ url, token }).getQueryApi(org);
 
 export default boot(({ app }) => {
   // for use inside Vue files (Options API) through this.$axios and this.$api
@@ -216,4 +220,4 @@ export default boot(({ app }) => {
   //       so you can easily perform requests against your app's API
 });
 
-export { api };
+export { api, queryApi };

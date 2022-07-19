@@ -22,6 +22,7 @@ const dayjs = require("dayjs");
 import Plotly from "plotly.js";
 import { useQuasar } from "quasar";
 import { useStore } from "vuex";
+import _ from "lodash";
 
 export default {
   // name: 'PageName',
@@ -36,44 +37,72 @@ export default {
     onMounted(() => {
       console.log("On mounted");
       createMetePlot();
-      // plotMete(currentDate.value);
+      plotMete(currentDate.value);
       const url = "http://localhost:8086";
       const token =
-        "0ql08EobRW6A23j97jAkLyqNKIfQIKJS9_Wrw4mWIqBu795dl4cSfaykizl261h-QwY9BPDMUXbDCuFzlPQsfg==";
+        "QRNlK60Noca9m2WIjgUSHaE3C1PGnzNZ-qHY1MajJBSDIjkpJdxPwJ1bG11cOYJREvLgEp8D5h_xH1AhvgvBww==";
       const org = "kufi";
       const bucket = "dauerauswertung_immendingen";
+      const targetDate = "2022-07-03T08:00:00Z";
       const nextDay = dayjs(targetDate).add(1, "day").format("YYYY-MM-DD");
       const fifteenMinutesLater = dayjs(targetDate)
         .add(15, "minute")
         .format("YYYY-MM-DDThh:mm:ssZ");
 
       const queryApi = new InfluxDB({ url, token }).getQueryApi(org);
-      const fluxQuery = `from(bucket: "dauerauswertung_immendingen") |> range(start: ${currentDate.value}, stop: ${nextDay}) |> filter(fn: (r) => r["_measurement"] == "messwerte_immendingen_mete") |> aggregateWindow(every: 300s, fn: mean)`;
+      const verursachers = [
+        "gesamt",
+        "mp1_ohne_ereignis",
+        "mp2_ohne_ereignis",
+        "mp3_ohne_ereignis",
+        "mp4_ohne_ereignis",
+        "mp5_ohne_ereignis",
+        "mp5_vorbeifahrt",
+        "mp6_ohne_ereignis",
+      ];
+      const fluxQuery = `from(bucket: "dauerauswertung_immendingen") |> range(start: ${"2022-07-15"}, stop: ${"2022-07-16"}) |> filter(fn: (r) => r["_measurement"] == "messwerte_immendingen_mete") |> aggregateWindow(every: 300s, fn: mean)`;
       const fluxQueryMete = "";
-      const fluxQueryLr = "";
-      const fluxQueryResu = "";
-      const fluxQueryTerz = "";
-      const fluxQueryAussortiert = "";
-      const fluxQueryErkennung = "";
+
       console.log("** QUERY ROWS ***");
-      queryApi.queryRows(fluxQuery, {
-        next(row, tableMeta) {
-          const o = tableMeta.toObject(row);
-          console.log(o);
-          // console.log(JSON.stringify(o, null, 2))
-          console.log(
-            row
-            //`${o._time} ${o._measurement} in '${o.location}' (${o.example}): ${o._field}=${o._value}`
-          );
-        },
-        error(error) {
-          console.error(error);
-          console.log("\nFinished ERROR");
-        },
-        complete() {
-          console.log("\nFinished SUCCESS");
-        },
-      });
+      if (false) {
+        queryApi.queryRows(fluxQueryResu, {
+          next(row, tableMeta) {
+            const o = tableMeta.toObject(row);
+            console.log(o);
+            // console.log(JSON.stringify(o, null, 2))
+            console.log(
+              row
+              //`${o._time} ${o._measurement} in '${o.location}' (${o.example}): ${o._field}=${o._value}`
+            );
+          },
+          error(error) {
+            console.error(error);
+            console.log("\nFinished ERROR");
+          },
+          complete() {
+            console.log("\nFinished SUCCESS");
+          },
+        });
+      } else if (false) {
+        queryApi
+          .collectRows(fluxQueryErkennung)
+          .then((rows) => console.log(rows));
+        queryApi
+          .collectRows(fluxQueryAussortiert)
+          .then((rows) => console.log(rows));
+        queryApi.collectRows(fluxQueryResu).then((rows) => console.log(rows));
+        queryApi.collectRows(fluxQueryTerz).then((rows) => console.log(rows));
+      } else if (false) {
+        for (let v of verursachers) {
+          const fluxQueryLr = `from(bucket: "dauerauswertung_immendingen")
+  |> range(start: ${"2022-07-15T06:00:00Z"}, stop: ${"2022-07-16T21:59:59Z"})
+  |> filter(fn: (r) => r["_measurement"] == "auswertung_immendingen_lr")
+  |> filter(fn: (r) => r["_field"] == "lr")
+  |> filter(fn: (r) => r["immissionsort"] == "1")
+  |> filter(fn: (r) => r["verursacher"] == "${v}")`;
+          queryApi.collectRows(fluxQueryLr).then((rows) => console.log(rows));
+        }
+      }
     });
 
     watch(currentDate, (newVal, oldVal) => {
@@ -83,23 +112,45 @@ export default {
 
     function plotMete(targetDate) {
       $q.loading.show();
+      const url = "http://localhost:8086";
+      const token =
+        "QRNlK60Noca9m2WIjgUSHaE3C1PGnzNZ-qHY1MajJBSDIjkpJdxPwJ1bG11cOYJREvLgEp8D5h_xH1AhvgvBww==";
+      const org = "kufi";
+      const queryApi = new InfluxDB({ url, token }).getQueryApi(org);
       const nextDay = dayjs(targetDate).add(1, "day").format("YYYY-MM-DD");
       const project_name = "immendingen";
-      const query = `http://localhost:8086/query?db=dauerauswertung_immendingen&q=Select * from messwerte_${project_name}_mete where time >= '${targetDate}' AND time <= '${nextDay}'`;
-      console.log("Query for Influx:", query);
+      const query = `from(bucket: "dauerauswertung_${project_name}") |> range(start: ${targetDate}, stop: ${nextDay}) |> filter(fn: (r) => r["_measurement"] == "messwerte_immendingen_mete") |> aggregateWindow(every: 300s, fn: mean)`;
 
-      return api
-        .get(
-          query
-          // `http://localhost:8000/dauerauswertung/metecharts/?datetime__gt=${targetDate}&datetime__lt=${nextDay}`
-        )
+      return queryApi
+        .collectRows(query)
+        .then((rows) => {
+          console.log(rows);
+          if (rows.length == 0) throw new Error("No rows were returned");
+          let grouped = _.groupBy(rows, "_field");
+
+          console.log(grouped);
+
+          let result = {};
+
+          for (let g in grouped) {
+            result[g] = {
+              x: grouped[g].map((i) => i._time),
+              y: grouped[g].map((i) => i._value),
+            };
+          }
+
+          return result;
+        })
         .then((meteCall) => {
-          console.log("results", meteCall.data);
+          console.log("results", meteCall);
 
-          updateChartData(meteCall.data);
+          updateChartData(meteCall);
           $q.loading.hide();
 
           return meteCall.data;
+        })
+        .finally(() => {
+          $q.loading.hide();
         });
     }
     function createMetePlot() {
@@ -184,7 +235,7 @@ export default {
             y: [0.25, 1],
           },
           radialaxis: {
-            //type: "date",
+            type: "date",
             visible: true,
             //range: [shownDate.getTime(), shownDate.getTime() + 24 * 3600 * 1000],
           },
@@ -303,8 +354,8 @@ export default {
         let myTrace;
         if (p != "winddirection") {
           myTrace = {
-            x: updateData["datetime"],
-            y: updateData[p],
+            x: updateData[p].x,
+            y: updateData[p].y,
             xaxis: prop2Axis[p][0],
             yaxis: prop2Axis[p][1],
             type: styling[p]["type"],
@@ -321,8 +372,8 @@ export default {
           myTrace = {
             type: "scatterpolar",
             mode: "markers",
-            r: updateData["datetime"], // myData.x,
-            theta: updateData[p], // myData.winddirection,
+            r: updateData[p].x, // myData.x,
+            theta: updateData[p].y, // myData.winddirection,
             line: {
               color: "red",
             },
