@@ -70,6 +70,8 @@ export const terzProps = [
 export const config_mannheim = {
   initial_map_position: [49.523202, 8.4872387],
   project_id: 2,
+  bezeichnung: "mannheim",
+  hasMeteData: false,
   ios: [
     {
       id: 4,
@@ -93,12 +95,21 @@ export const config_mannheim = {
       gw_nacht: 32,
     },
   ],
-  mps: [{ id: 1, name: "MP 1", position: [49.521449, 8.4838235] }],
+  mps: [
+    {
+      id: 1,
+      name: "Mannheim MP 1",
+      position: [49.521449, 8.4838235],
+      name_in_api: "Mannheim MP 1",
+    },
+  ],
 };
 
 export const config_immendingen = {
   initial_map_position: [47.912783, 8.728536],
   project_id: 1,
+  bezeichnung: "immendingen",
+  hasMeteData: true,
   mps: [
     {
       id: 1,

@@ -6,14 +6,15 @@
 
 <script>
 import { map, tileLayer, marker, icon } from "leaflet";
-import { config_immendingen, config_mannheim } from "../boot/utility";
+
+import { onMounted, ref, watch, computed } from "vue";
+import { api, queryApi } from "../boot/axios";
+import moduleExample from "src/store/module-example";
+const dayjs = require("dayjs");
+import { useQuasar } from "quasar";
 import { useStore } from "vuex";
 
-const myMesspunkte = config_immendingen.mps;
-const myImmissionsorte = config_immendingen.ios;
-const initalPosition = config_immendingen.initial_map_position;
-
-function createMap() {
+function createMap(myMesspunkte, myImmissionsorte, initalPosition) {
   var myMap = map("otherMap").setView(initalPosition, 13);
 
   var tiles = tileLayer(
@@ -62,14 +63,15 @@ function createMap() {
 export default {
   // name: 'ComponentName',
   setup() {
-    return {
-      foo() {
-        createMap();
-      },
-    };
-  },
-  mounted() {
-    createMap();
+    const store = useStore();
+    const myMesspunkte = store.state.example.messpunktOptions;
+    const myImmissionsorte = store.state.example.immissionsortOptions;
+    const initialPosition = store.state.example.initialPosition;
+    console.log(initialPosition);
+    onMounted(() => {
+      createMap(myMesspunkte, myImmissionsorte, initialPosition);
+    });
+    return {};
   },
 };
 </script>

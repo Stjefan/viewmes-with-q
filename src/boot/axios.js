@@ -204,7 +204,8 @@ import {
 
 const url = "http://localhost:8086";
 const token =
-  "QRNlK60Noca9m2WIjgUSHaE3C1PGnzNZ-qHY1MajJBSDIjkpJdxPwJ1bG11cOYJREvLgEp8D5h_xH1AhvgvBww==";
+  "S3Ou7vqKvLFCkqDG8UgPnGnBVzvR5VngWc3HCzaW2qXQlEvr9-ggfuXIKXzKvzkOozd0kNnKCsZxhDywNG8gTA=="; // KUFI-Server
+//"QRNlK60Noca9m2WIjgUSHaE3C1PGnzNZ-qHY1MajJBSDIjkpJdxPwJ1bG11cOYJREvLgEp8D5h_xH1AhvgvBww==";
 const org = "kufi";
 const queryApi = new InfluxDB({ url, token }).getQueryApi(org);
 

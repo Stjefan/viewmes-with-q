@@ -69,6 +69,8 @@ export default {
     const intervalYAxisResu = ref(60);
     const maxYAxisResu = ref(60);
 
+    const projektbezeichnung = store.state.example.projektbezeichnung;
+
     const messpunktOptions = store.state.example.messpunktOptions; // ["MP 1", "MP 2", "MP 3", "MP 4", "MP 5", "MP 6"];
     const selectedMesspunkt = ref(messpunktOptions[0]);
 
@@ -210,19 +212,19 @@ export default {
 
       const fluxQueryResu = `from(bucket: "dauerauswertung_immendingen")
   |> range(start: ${targetDate}, stop: ${fifteenMinutesLater})
-  |> filter(fn: (r) => r["_measurement"] == "messwerte_immendingen_resu")
+  |> filter(fn: (r) => r["_measurement"] == "messwerte_${projektbezeichnung}_resu")
   |> filter(fn: (r) => r["_field"] == "lafeq")
   |> filter(fn: (r) => r["messpunkt"] == "${selectedMesspunkt.name_in_api}")`;
       const fluxQueryTerz = `from(bucket: "dauerauswertung_immendingen")
   |> range(start: ${targetDate}, stop: ${fifteenMinutesLater})
-  |> filter(fn: (r) => r["_measurement"] == "messwerte_immendingen_terz")
+  |> filter(fn: (r) => r["_measurement"] == "messwerte_${projektbezeichnung}_terz")
   |> filter(fn: (r) => r["messpunkt"] == "${selectedMesspunkt.name_in_api}")`;
       const fluxQueryAussortiert = `from(bucket: "dauerauswertung_immendingen")
   |> range(start: ${targetDate}, stop: ${fifteenMinutesLater})
-  |> filter(fn: (r) => r["_measurement"] == "auswertung_immendingen_aussortierung")`;
+  |> filter(fn: (r) => r["_measurement"] == "auswertung_${projektbezeichnung}_aussortierung")`;
       const fluxQueryErkennung = `from(bucket: "dauerauswertung_immendingen")
   |> range(start: ${targetDate}, stop: ${fifteenMinutesLater})
-  |> filter(fn: (r) => r["_measurement"] == "auswertung_immendingen_erkennung")
+  |> filter(fn: (r) => r["_measurement"] == "auswertung_${projektbezeichnung}_erkennung")
  |> sort(columns: ["_time"], desc: false)`;
 
       return Promise.all([

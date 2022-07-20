@@ -32,17 +32,11 @@
 <script>
 import Plotly from "plotly.js";
 import { onMounted, ref, watch, computed } from "vue";
-import { api } from "../boot/axios";
+import { api, queryApi } from "../boot/axios";
 const dayjs = require("dayjs");
 import { useQuasar } from "quasar";
 import { useStore } from "vuex";
 import _ from "lodash";
-
-import { config_immendingen } from "../boot/utility";
-import {
-  InfluxDB,
-  FluxTableMetaData,
-} from "@influxdata/influxdb-client-browser";
 
 export default {
   // name: 'PageName',
@@ -52,8 +46,8 @@ export default {
     const currentDate = computed(() =>
       dayjs(store.state.example.currentlySelectedDateTime).format("YYYY-MM-DD")
     ); // ref(dayjs().format("YYYY-MM-DD"));
-
-    const immissionsortOptions = config_immendingen.ios;
+    const projektbezeichnung = store.state.example.projektbezeichnung;
+    const immissionsortOptions = store.state.example.immissionsortOptions;
     const selectedImmissionsort = ref(immissionsortOptions[0]);
     const intervalYAxisLr = ref(50);
     const maxYAxisLr = ref(50);
@@ -114,11 +108,7 @@ export default {
       $q.loading.show();
       console.log("On mounted");
       let immissionsort = `${io.id}`; // "IO 1";
-      const url = "http://localhost:8086";
-      const token =
-        "QRNlK60Noca9m2WIjgUSHaE3C1PGnzNZ-qHY1MajJBSDIjkpJdxPwJ1bG11cOYJREvLgEp8D5h_xH1AhvgvBww==";
-      const org = "kufi";
-      const queryApi = new InfluxDB({ url, token }).getQueryApi(org);
+
       // simplePlot();
       const idsBeurteilungszeitraum = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
@@ -151,7 +141,7 @@ export default {
         ];
         const fluxQueryLr = `from(bucket: "dauerauswertung_immendingen")
   |> range(start: ${startBeurteilungszeitraum}, stop: ${endBeurteilungszeitraum})
-  |> filter(fn: (r) => r["_measurement"] == "auswertung_immendingen_lr")
+  |> filter(fn: (r) => r["_measurement"] == "auswertung_${projektbezeichnung}_lr")
   |> filter(fn: (r) => r["_field"] == "lr")
   |> filter(fn: (r) => r["immissionsort"] == "${immissionsort}")`; //   |> filter(fn: (r) => r["verursacher"] == "${v}")
 
@@ -246,7 +236,12 @@ export default {
       mp3: "yellow",
       mp4: "orange",
       mp5: "purple",
-      mp6: "rosegreen",
+      mp1_ohne_ereignis: "magenta",
+      mp2_ohne_ereignis: "green",
+      mp3_ohne_ereignis: "yellow",
+      mp4_ohne_ereignis: "orange",
+      mp5_ohne_ereignis: "purple",
+      mp6_ohne_ereignis: "rosegreen",
     };
 
     function mapVerursacherNames(name) {

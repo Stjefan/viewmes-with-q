@@ -4,7 +4,7 @@
       <q-toolbar>
         <q-btn label="Immissionsort" :to="{ name: 'io' }" flat />
         <q-btn label="Messpunkt" :to="{ name: 'mp' }" flat />
-        <q-btn label="Wetter" :to="{ name: 'mete' }" flat />
+        <q-btn label="Wetter" :to="{ name: 'mete' }" flat v-if="showMeteTab" />
         <q-btn label="Karte" :to="{ name: 'map' }" flat />
         <q-toolbar-title></q-toolbar-title>
 
@@ -20,51 +20,6 @@
 
 <script>
 import { defineComponent, ref, onErrorCaptured } from "vue";
-
-const linksList = [
-  {
-    title: "Docs",
-    caption: "quasar.dev",
-    icon: "school",
-    link: "https://quasar.dev",
-  },
-  {
-    title: "Github",
-    caption: "github.com/quasarframework",
-    icon: "code",
-    link: "https://github.com/quasarframework",
-  },
-  {
-    title: "Discord Chat Channel",
-    caption: "chat.quasar.dev",
-    icon: "chat",
-    link: "https://chat.quasar.dev",
-  },
-  {
-    title: "Forum",
-    caption: "forum.quasar.dev",
-    icon: "record_voice_over",
-    link: "https://forum.quasar.dev",
-  },
-  {
-    title: "Twitter",
-    caption: "@quasarframework",
-    icon: "rss_feed",
-    link: "https://twitter.quasar.dev",
-  },
-  {
-    title: "Facebook",
-    caption: "@QuasarFramework",
-    icon: "public",
-    link: "https://facebook.quasar.dev",
-  },
-  {
-    title: "Quasar Awesome",
-    caption: "Community Quasar projects",
-    icon: "favorite",
-    link: "https://awesome.quasar.dev",
-  },
-];
 
 const dayjs = require("dayjs");
 var utc = require("dayjs/plugin/utc");
@@ -85,6 +40,7 @@ dayjs.tz.guess();
 
 console.log(dayjs.tz.guess());
 import { useQuasar } from "quasar";
+import { useStore } from "vuex";
 
 export default defineComponent({
   name: "MainLayout",
@@ -93,9 +49,12 @@ export default defineComponent({
 
   setup() {
     const $q = useQuasar();
+    const store = useStore();
 
     var now = dayjs();
     const leftDrawerOpen = ref(false);
+
+    const showMeteTab = store.state.example.showMeteTab;
 
     const currentDate = ref(now.format("YYYY-MM-DD"));
 
@@ -105,8 +64,8 @@ export default defineComponent({
     });
 
     return {
+      showMeteTab,
       currentDate,
-      essentialLinks: linksList,
       leftDrawerOpen,
       toggleLeftDrawer() {
         leftDrawerOpen.value = !leftDrawerOpen.value;

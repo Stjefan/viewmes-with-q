@@ -12,12 +12,8 @@ function updatePlotlyLayout(target, args) {
   Plotly.relayout(graphDiv, args);
 }
 
-import {
-  InfluxDB,
-  FluxTableMetaData,
-} from "@influxdata/influxdb-client-browser";
 import { onMounted, ref, watch, computed } from "vue";
-import { api } from "../boot/axios";
+import { api, queryApi } from "../boot/axios";
 const dayjs = require("dayjs");
 import Plotly from "plotly.js";
 import { useQuasar } from "quasar";
@@ -38,18 +34,12 @@ export default {
       console.log("On mounted");
       createMetePlot();
       plotMete(currentDate.value);
-      const url = "http://localhost:8086";
-      const token =
-        "QRNlK60Noca9m2WIjgUSHaE3C1PGnzNZ-qHY1MajJBSDIjkpJdxPwJ1bG11cOYJREvLgEp8D5h_xH1AhvgvBww==";
-      const org = "kufi";
-      const bucket = "dauerauswertung_immendingen";
       const targetDate = "2022-07-03T08:00:00Z";
       const nextDay = dayjs(targetDate).add(1, "day").format("YYYY-MM-DD");
       const fifteenMinutesLater = dayjs(targetDate)
         .add(15, "minute")
         .format("YYYY-MM-DDThh:mm:ssZ");
 
-      const queryApi = new InfluxDB({ url, token }).getQueryApi(org);
       const verursachers = [
         "gesamt",
         "mp1_ohne_ereignis",
@@ -112,11 +102,6 @@ export default {
 
     function plotMete(targetDate) {
       $q.loading.show();
-      const url = "http://localhost:8086";
-      const token =
-        "QRNlK60Noca9m2WIjgUSHaE3C1PGnzNZ-qHY1MajJBSDIjkpJdxPwJ1bG11cOYJREvLgEp8D5h_xH1AhvgvBww==";
-      const org = "kufi";
-      const queryApi = new InfluxDB({ url, token }).getQueryApi(org);
       const nextDay = dayjs(targetDate).add(1, "day").format("YYYY-MM-DD");
       const project_name = "immendingen";
       const query = `from(bucket: "dauerauswertung_${project_name}") |> range(start: ${targetDate}, stop: ${nextDay}) |> filter(fn: (r) => r["_measurement"] == "messwerte_immendingen_mete") |> aggregateWindow(every: 300s, fn: mean)`;
