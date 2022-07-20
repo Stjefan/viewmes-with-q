@@ -28,17 +28,6 @@ var timezone = require("dayjs/plugin/timezone"); //
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-let myTime = dayjs.tz("2014-06-01 12:00", "America/New_York");
-console.log(
-  dayjs.tz(myTime, "Europe/Berlin").format("YYYY-MM-DDTHH:mm:ss"),
-  dayjs.tz("2014-06-01 12:00", "Europe/Berlin").format("YYYY-MM-DDTHH:mm:ss")
-);
-console.log("blub", dayjs.tz(dayjs("2014-06-01T16:00:00"), "Europe/Berlin"));
-console.log(dayjs("2014-06-01T12:00:00Z").format("YYYY-MM-DDTHH:mm:ss"));
-
-dayjs.tz.guess();
-
-console.log(dayjs.tz.guess());
 import { useQuasar } from "quasar";
 import { useStore } from "vuex";
 
@@ -56,8 +45,6 @@ export default defineComponent({
 
     const showMeteTab = store.state.example.showMeteTab;
 
-    const currentDate = ref(now.format("YYYY-MM-DD"));
-
     onErrorCaptured((err, instance, info) => {
       console.log(err, instance, info);
       $q.notify(`Fehler: ${err}`);
@@ -65,7 +52,6 @@ export default defineComponent({
 
     return {
       showMeteTab,
-      currentDate,
       leftDrawerOpen,
       toggleLeftDrawer() {
         leftDrawerOpen.value = !leftDrawerOpen.value;
