@@ -159,6 +159,7 @@ export default {
         for (let beurteilungszeitraum of idsBeurteilungszeitraum) {
           let grouped = _.groupBy(lrCalls[beurteilungszeitraum], "verursacher");
           let result = {};
+          let justOnce = true;
           for (let g in grouped) {
             result[g] = {
               x: grouped[g].map(
@@ -169,7 +170,22 @@ export default {
               ),
               y: grouped[g].map((i) => i._value),
             };
+            if (justOnce) {
+              const grenzwert =
+                beurteilungszeitraum != 6 ? io.gw_nacht : io.gw_tag;
+              result["grenzwert"] = {
+                x: grouped[g].map(
+                  (i) =>
+                    dayjs
+                      .tz(dayjs(i._time.slice(0, -1)))
+                      .format("YYYY-MM-DDTHH:mm:ss") + "Z"
+                ),
+                y: grouped[g].map((i) => grenzwert),
+              };
+              justOnce = false;
+            }
           }
+
           console.log(result);
           if (false) {
             if (beurteilungszeitraum == 6) {

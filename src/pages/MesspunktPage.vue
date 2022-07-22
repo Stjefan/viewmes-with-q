@@ -63,11 +63,11 @@ export default {
 
     let currentTerzData = null;
 
-    const intervalYAxisTerz = ref(60);
-    const maxYAxisTerz = ref(60);
+    const intervalYAxisTerz = ref(store.state.example.intervalYAxisTerz);
+    const maxYAxisTerz = ref(store.state.example.maxYAxisTerz);
 
-    const intervalYAxisResu = ref(60);
-    const maxYAxisResu = ref(60);
+    const intervalYAxisResu = ref(store.state.example.intervalYAxisResu);
+    const maxYAxisResu = ref(store.state.example.maxYAxisResu);
 
     const projektbezeichnung = store.state.example.projektbezeichnung;
 
