@@ -8,7 +8,7 @@
         <q-btn label="Karte" :to="{ name: 'map' }" flat />
         <q-toolbar-title></q-toolbar-title>
 
-        <div>ViewMes v07-22</div>
+        <div>ViewMes v08-22</div>
       </q-toolbar>
     </q-header>
 
@@ -37,6 +37,11 @@ export default defineComponent({
   components: {},
 
   setup() {
+    console.log(
+      "Running build for project with name:",
+      process.env.bezeichnungZugeordnetesProjekt
+    );
+
     const $q = useQuasar();
     const store = useStore();
 
@@ -50,7 +55,12 @@ export default defineComponent({
       $q.notify(`Fehler: ${err}`);
     });
 
+    const raiseError = () => {
+      throw new Error("This is a test error");
+    };
+
     return {
+      raiseError,
       showMeteTab,
       leftDrawerOpen,
       toggleLeftDrawer() {

@@ -97,10 +97,10 @@ export const config_mannheim = {
   ],
   mps: [
     {
-      id: 1,
-      name: "Mannheim MP 1",
+      id: 2,
+      name: "Mannheim MP 2",
       position: [49.521449, 8.4838235],
-      name_in_api: "Mannheim MP 1",
+      name_in_api: "Mannheim MP 2",
     },
   ],
 };

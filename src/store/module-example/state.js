@@ -1,7 +1,11 @@
 import dayjs from "dayjs";
 import { config_immendingen, config_mannheim } from "../../boot/utility";
 
-const project = config_immendingen;
+const project =
+  process.env.bezeichnungZugeordnetesProjekt == "Immendingen"
+    ? config_immendingen
+    : config_mannheim;
+
 export default function () {
   return {
     currentlySelectedDateTime: dayjs().add(-15, "minute"), // "2022-07-02T09:00:00Z",

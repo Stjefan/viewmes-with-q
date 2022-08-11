@@ -2,8 +2,9 @@ const routes = [
   {
     path: "/",
     component: () => import("layouts/MainLayout.vue"),
+    redirect: "/io",
     children: [
-      { path: "", component: () => import("pages/IndexPage.vue") },
+      // { path: "", component: () => import("pages/IndexPage.vue") },
       {
         path: "io",
         component: () => import("pages/ImmissionsortPage.vue"),

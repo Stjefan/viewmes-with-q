@@ -8,7 +8,7 @@
 import { map, tileLayer, marker, icon } from "leaflet";
 
 import { onMounted, ref, watch, computed } from "vue";
-import { api, queryApi } from "../boot/axios";
+import { queryApi } from "../boot/influx";
 import moduleExample from "src/store/module-example";
 const dayjs = require("dayjs");
 import { useQuasar } from "quasar";
@@ -33,7 +33,7 @@ function createMap(myMesspunkte, myImmissionsorte, initalPosition) {
   ).addTo(myMap);
 
   let myBlueIcon = icon({
-    iconUrl: "icons/marker-icon-blue.png",
+    iconUrl: require("assets/marker-icon-blue.png"), //"icons/marker-icon-blue.png",
   });
 
   for (let p of myMesspunkte) {
@@ -41,7 +41,7 @@ function createMap(myMesspunkte, myImmissionsorte, initalPosition) {
   }
 
   let myIcon = icon({
-    iconUrl: "icons/marker-icon-red.png",
+    iconUrl: require("assets/marker-icon-red.png"), // "icons/marker-icon-red.png",
   });
   console.log(myIcon);
   for (let p of myImmissionsorte) {

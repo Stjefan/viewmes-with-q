@@ -1,7 +1,13 @@
 <template>
   <q-page padding>
     <!-- content -->
-    <q-input type="date" :model-value="currentDate" @update:model-value="foo" />
+    <div class="row">
+      <q-input
+        type="date"
+        :model-value="currentDate"
+        @update:model-value="foo"
+      />
+    </div>
     <div id="mete-charts" style="height: 75vh" />
   </q-page>
 </template>
@@ -13,7 +19,7 @@ function updatePlotlyLayout(target, args) {
 }
 
 import { onMounted, ref, watch, computed } from "vue";
-import { api, queryApi } from "../boot/axios";
+import { queryApi } from "../boot/influx";
 const dayjs = require("dayjs");
 import Plotly from "plotly.js";
 import { useQuasar } from "quasar";
@@ -34,65 +40,6 @@ export default {
       console.log("On mounted");
       createMetePlot();
       plotMete(currentDate.value);
-      const targetDate = "2022-07-03T08:00:00Z";
-      const nextDay = dayjs(targetDate).add(1, "day").format("YYYY-MM-DD");
-      const fifteenMinutesLater = dayjs(targetDate)
-        .add(15, "minute")
-        .format("YYYY-MM-DDThh:mm:ssZ");
-
-      const verursachers = [
-        "gesamt",
-        "mp1_ohne_ereignis",
-        "mp2_ohne_ereignis",
-        "mp3_ohne_ereignis",
-        "mp4_ohne_ereignis",
-        "mp5_ohne_ereignis",
-        "mp5_vorbeifahrt",
-        "mp6_ohne_ereignis",
-      ];
-      const fluxQuery = `from(bucket: "dauerauswertung_immendingen") |> range(start: ${"2022-07-15"}, stop: ${"2022-07-16"}) |> filter(fn: (r) => r["_measurement"] == "messwerte_immendingen_mete") |> aggregateWindow(every: 300s, fn: mean)`;
-      const fluxQueryMete = "";
-
-      console.log("** QUERY ROWS ***");
-      if (false) {
-        queryApi.queryRows(fluxQueryResu, {
-          next(row, tableMeta) {
-            const o = tableMeta.toObject(row);
-            console.log(o);
-            // console.log(JSON.stringify(o, null, 2))
-            console.log(
-              row
-              //`${o._time} ${o._measurement} in '${o.location}' (${o.example}): ${o._field}=${o._value}`
-            );
-          },
-          error(error) {
-            console.error(error);
-            console.log("\nFinished ERROR");
-          },
-          complete() {
-            console.log("\nFinished SUCCESS");
-          },
-        });
-      } else if (false) {
-        queryApi
-          .collectRows(fluxQueryErkennung)
-          .then((rows) => console.log(rows));
-        queryApi
-          .collectRows(fluxQueryAussortiert)
-          .then((rows) => console.log(rows));
-        queryApi.collectRows(fluxQueryResu).then((rows) => console.log(rows));
-        queryApi.collectRows(fluxQueryTerz).then((rows) => console.log(rows));
-      } else if (false) {
-        for (let v of verursachers) {
-          const fluxQueryLr = `from(bucket: "dauerauswertung_immendingen")
-  |> range(start: ${"2022-07-15T06:00:00Z"}, stop: ${"2022-07-16T21:59:59Z"})
-  |> filter(fn: (r) => r["_measurement"] == "auswertung_immendingen_lr")
-  |> filter(fn: (r) => r["_field"] == "lr")
-  |> filter(fn: (r) => r["immissionsort"] == "1")
-  |> filter(fn: (r) => r["verursacher"] == "${v}")`;
-          queryApi.collectRows(fluxQueryLr).then((rows) => console.log(rows));
-        }
-      }
     });
 
     watch(currentDate, (newVal, oldVal) => {
@@ -102,6 +49,7 @@ export default {
 
     function plotMete(targetDate) {
       $q.loading.show();
+      clearChart();
       const nextDay = dayjs(targetDate).add(1, "day").format("YYYY-MM-DD");
       const project_name = "immendingen";
       const query = `from(bucket: "dauerauswertung_${project_name}") |> range(start: ${targetDate}, stop: ${nextDay}) |> filter(fn: (r) => r["_measurement"] == "messwerte_immendingen_mete") |> aggregateWindow(every: 300s, fn: mean)`;
@@ -133,6 +81,12 @@ export default {
           $q.loading.hide();
 
           return meteCall.data;
+        })
+        .catch((e) => {
+          $q.notify({
+            message: `Fehler beim Laden der Daten: ${e}`,
+            type: "negative",
+          });
         })
         .finally(() => {
           $q.loading.hide();
@@ -180,11 +134,6 @@ export default {
           yaxis: "y5",
           name: "Luftdruck",
         },
-      ];
-
-      // window.Plotly.newPlot("mete-charts", data, layout);
-
-      const polardata = [
         {
           type: "scatterpolar",
           mode: "markers",
@@ -197,8 +146,6 @@ export default {
           name: "Windrichtung",
         },
       ];
-
-      // window.Plotly.newPlot("polarcharts", polardata, polarlayout);
 
       const multiplotLayout = {
         title: "Wetterübersicht",
@@ -278,11 +225,22 @@ export default {
       Plotly.newPlot("mete-charts", data, multiplotLayout, config);
     }
 
-    function updateChartData(updateData) {
-      const myTraces = [];
+    function clearChart() {
       const graphDiv = document.getElementById("mete-charts");
 
-      Plotly.deleteTraces(graphDiv, [...graphDiv.data.keys()]);
+      console.log(graphDiv.data);
+
+      for (let p of [...graphDiv.data]) {
+        p.x = [];
+        p.y = [];
+      }
+
+      // Plotly.deleteTraces(graphDiv, [...graphDiv.data.keys()]);
+    }
+
+    function updateChartData(updateData) {
+      const myTraces = [];
+      clearChart();
 
       const properties = [
         "rain",

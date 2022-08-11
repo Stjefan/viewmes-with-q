@@ -12,6 +12,9 @@ const ESLintPlugin = require("eslint-webpack-plugin");
 
 const { configure } = require("quasar/wrappers");
 
+console.log(process.env);
+
+const bezeichnungZugeordnetesProjekt = "Immendingen"; // ; // "Mannheim";
 module.exports = configure(function (ctx) {
   return {
     // https://v2.quasar.dev/quasar-cli-webpack/supporting-ts
@@ -23,7 +26,7 @@ module.exports = configure(function (ctx) {
     // app boot file (/src/boot)
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-webpack/boot-files
-    boot: ["axios"],
+    boot: ["axios", "influx"],
 
     // https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js#Property%3A-css
     css: ["app.scss"],
@@ -44,6 +47,11 @@ module.exports = configure(function (ctx) {
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js#Property%3A-build
     build: {
+      // passing down to UI code from quasar.config.js
+      env: {
+        bezeichnungZugeordnetesProjekt: bezeichnungZugeordnetesProjekt, //"Immendingen",
+      },
+      productName: `ViewMes22 - ${bezeichnungZugeordnetesProjekt}`,
       vueRouterMode: "hash", // available values: 'hash', 'history'
 
       // transpile: false,
@@ -144,7 +152,7 @@ module.exports = configure(function (ctx) {
       },
 
       manifest: {
-        name: `ViewMes22`,
+        name: `ViewMes22`, // bezeichnungZugeordnetesProjekt
         short_name: `ViewMes22`,
         description: `ViewMes22`,
         display: "standalone",
@@ -193,7 +201,7 @@ module.exports = configure(function (ctx) {
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-webpack/developing-electron-apps/configuring-electron
     electron: {
-      bundler: "packager", // 'packager' or 'builder'
+      bundler: "builder", // 'packager' or 'builder'
 
       packager: {
         // https://github.com/electron-userland/electron-packager/blob/master/docs/api.md#options
@@ -204,12 +212,22 @@ module.exports = configure(function (ctx) {
         // protocol: 'myapp://path',
         // Windows only
         // win32metadata: { ... }
+        name: `ViewMes22 ${bezeichnungZugeordnetesProjekt}`,
       },
 
       builder: {
         // https://www.electron.build/configuration/configuration
 
-        appId: "viewmes-with-q",
+        appId: `viewmes-${bezeichnungZugeordnetesProjekt}`,
+        productName: `ViewMes22 ${bezeichnungZugeordnetesProjekt}`,
+        win: {
+          target: "nsis", // "nsis",
+          icon: "icons/chart_256.png",
+        },
+        nsis: {
+          oneClick: false,
+          perMachine: true,
+        },
       },
 
       // "chain" is a webpack-chain object https://github.com/neutrinojs/webpack-chain

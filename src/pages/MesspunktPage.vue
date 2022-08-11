@@ -1,7 +1,7 @@
 <template>
   <q-page padding>
     <!-- content -->
-    <div class="row">
+    <div class="row q-gutter-md">
       <q-input
         type="datetime-local"
         :model-value="selectedTimePoint"
@@ -44,7 +44,7 @@
 <script>
 import Plotly from "plotly.js";
 import { onMounted, ref, watch, computed } from "vue";
-import { api, queryApi } from "../boot/axios";
+import { queryApi } from "../boot/influx";
 const dayjs = require("dayjs");
 import { useQuasar } from "quasar";
 import { useStore } from "vuex";
@@ -330,12 +330,18 @@ export default {
             modifiedGroupedTerz[selectedDateTime]
           );
         })
+        .catch((e) => {
+          console.log(e);
+          $q.notify({
+            message: `Fehler beim Laden der Daten: ${e}`,
+            type: "negative",
+          });
+          throw e;
+        })
         .finally(() => {
+          console.log("In finally block...");
           $q.loading.hide();
         });
-
-      if (false) {
-      }
     }
 
     const frequencies = [

@@ -1,7 +1,7 @@
 <template>
   <q-page padding>
     <!-- content -->
-    <div class="row">
+    <div class="row q-gutter-md">
       <q-input
         type="date"
         :model-value="currentDate"
@@ -31,8 +31,8 @@
 
 <script>
 import Plotly from "plotly.js";
-import { onMounted, ref, watch, computed } from "vue";
-import { api, queryApi } from "../boot/axios";
+import { onMounted, ref, watch, computed, onErrorCaptured } from "vue";
+import { queryApi } from "../boot/influx";
 const dayjs = require("dayjs");
 import { useQuasar } from "quasar";
 import { useStore } from "vuex";
@@ -51,6 +51,10 @@ export default {
     const selectedImmissionsort = ref(immissionsortOptions[0]);
     const intervalYAxisLr = ref(50);
     const maxYAxisLr = ref(50);
+
+    const raiseError = () => {
+      throw new Error("This is a test error");
+    };
 
     watch([maxYAxisLr, intervalYAxisLr], () => {
       updateLayout(
@@ -102,6 +106,14 @@ export default {
       plotLr(selectedImmissionsort.value, currentDate.value);
     });
 
+    onErrorCaptured((err, instance, info) => {
+      console.log(err, instance, info);
+      $q.notify({
+        message: `Fehler beim Laden der Daten: ${e}`,
+        type: "negative",
+      });
+    });
+
     function plotLr(io, myDate) {
       console.log(dayjs.locale("de"));
       console.log(dayjs.locale());
@@ -129,16 +141,6 @@ export default {
 
         console.log(startBeurteilungszeitraum, endBeurteilungszeitraum);
 
-        const verursachers = [
-          "gesamt",
-          "mp1_ohne_ereignis",
-          "mp2_ohne_ereignis",
-          "mp3_ohne_ereignis",
-          "mp4_ohne_ereignis",
-          "mp5_ohne_ereignis",
-          "mp5_vorbeifahrt",
-          "mp6_ohne_ereignis",
-        ];
         const fluxQueryLr = `from(bucket: "dauerauswertung_immendingen")
   |> range(start: ${startBeurteilungszeitraum}, stop: ${endBeurteilungszeitraum})
   |> filter(fn: (r) => r["_measurement"] == "auswertung_${projektbezeichnung}_lr")
@@ -147,101 +149,112 @@ export default {
 
         console.log(i, fluxQueryLr);
 
-        return queryApi.collectRows(fluxQueryLr);
-        if (false) {
-          return api.get(
-            `http://localhost:8000/dauerauswertung/lr?datetime__gt=${startBeurteilungszeitraum}&datetime__lt=${endBeurteilungszeitraum}&immissionsort__name=${immissionsort}`
-          );
-        }
+        return queryApi.collectRows(fluxQueryLr).catch((err) => {
+          console.log(i, err);
+          throw err;
+        });
       });
-      return Promise.all(myPromiseArray).then((lrCalls) => {
-        const totalResult = {};
-        for (let beurteilungszeitraum of idsBeurteilungszeitraum) {
-          let grouped = _.groupBy(lrCalls[beurteilungszeitraum], "verursacher");
-          let result = {};
-          let justOnce = true;
-          for (let g in grouped) {
-            result[g] = {
-              x: grouped[g].map(
-                (i) =>
-                  dayjs
-                    .tz(dayjs(i._time.slice(0, -1)))
-                    .format("YYYY-MM-DDTHH:mm:ss") + "Z"
-              ),
-              y: grouped[g].map((i) => i._value),
-            };
-            if (justOnce) {
-              const grenzwert =
-                beurteilungszeitraum != 6 ? io.gw_nacht : io.gw_tag;
-              result["grenzwert"] = {
+      return Promise.all(myPromiseArray)
+        .then((lrCalls) => {
+          const totalResult = {};
+          for (let beurteilungszeitraum of idsBeurteilungszeitraum) {
+            let grouped = _.groupBy(
+              lrCalls[beurteilungszeitraum],
+              "verursacher"
+            );
+            let result = {};
+            let justOnce = true;
+            for (let g in grouped) {
+              result[g] = {
                 x: grouped[g].map(
                   (i) =>
                     dayjs
                       .tz(dayjs(i._time.slice(0, -1)))
                       .format("YYYY-MM-DDTHH:mm:ss") + "Z"
                 ),
-                y: grouped[g].map((i) => grenzwert),
+                y: grouped[g].map((i) => i._value),
               };
-              justOnce = false;
+              if (justOnce) {
+                const grenzwert =
+                  beurteilungszeitraum != 6 ? io.gw_nacht : io.gw_tag;
+                result["grenzwert"] = {
+                  x: grouped[g].map(
+                    (i) =>
+                      dayjs
+                        .tz(dayjs(i._time.slice(0, -1)))
+                        .format("YYYY-MM-DDTHH:mm:ss") + "Z"
+                  ),
+                  y: grouped[g].map((i) => grenzwert),
+                };
+                justOnce = false;
+              }
             }
-          }
 
-          console.log(result);
-          if (false) {
-            if (beurteilungszeitraum == 6) {
-              result["grenzwert"] = {
-                x: [
-                  new Date(
-                    myDate +
-                      "T" +
-                      `${getBeurteilungszeitraumHours(beurteilungszeitraum)[0]
-                        .toString()
-                        .padStart(2, "0")}:00`
-                  ),
-                  new Date(
-                    myDate +
-                      "T" +
-                      `${getBeurteilungszeitraumHours(beurteilungszeitraum)[1]
-                        .toString()
-                        .padStart(2, "0")}:00`
-                  ),
-                ],
-                y: [grenzwert_tag, grenzwert_tag],
-              };
-            } else {
-              result["grenzwert"] = {
-                x: [
-                  new Date(
-                    myDate +
-                      "T" +
-                      `${getBeurteilungszeitraumHours(beurteilungszeitraum)[0]
-                        .toString()
-                        .padStart(2, "0")}:00`
-                  ),
-                  new Date(
-                    myDate +
-                      "T" +
-                      `${getBeurteilungszeitraumHours(beurteilungszeitraum)[1]
-                        .toString()
-                        .padStart(2, "0")}:00`
-                  ),
-                ],
-                y: [grenzwert_nacht, grenzwert_nacht],
-              };
+            console.log(result);
+            if (false) {
+              if (beurteilungszeitraum == 6) {
+                result["grenzwert"] = {
+                  x: [
+                    new Date(
+                      myDate +
+                        "T" +
+                        `${getBeurteilungszeitraumHours(beurteilungszeitraum)[0]
+                          .toString()
+                          .padStart(2, "0")}:00`
+                    ),
+                    new Date(
+                      myDate +
+                        "T" +
+                        `${getBeurteilungszeitraumHours(beurteilungszeitraum)[1]
+                          .toString()
+                          .padStart(2, "0")}:00`
+                    ),
+                  ],
+                  y: [grenzwert_tag, grenzwert_tag],
+                };
+              } else {
+                result["grenzwert"] = {
+                  x: [
+                    new Date(
+                      myDate +
+                        "T" +
+                        `${getBeurteilungszeitraumHours(beurteilungszeitraum)[0]
+                          .toString()
+                          .padStart(2, "0")}:00`
+                    ),
+                    new Date(
+                      myDate +
+                        "T" +
+                        `${getBeurteilungszeitraumHours(beurteilungszeitraum)[1]
+                          .toString()
+                          .padStart(2, "0")}:00`
+                    ),
+                  ],
+                  y: [grenzwert_nacht, grenzwert_nacht],
+                };
+              }
             }
+
+            console.log(result);
+            totalResult[beurteilungszeitraum] = result;
           }
+          console.log(totalResult);
 
-          console.log(result);
-          totalResult[beurteilungszeitraum] = result;
-        }
-        console.log(totalResult);
+          updateChartData(totalResult);
 
-        updateChartData(totalResult);
-
-        $q.loading.hide(totalResult);
-
-        console.log("Promise ended", totalResult);
-      });
+          console.log("Promise ended", totalResult);
+        })
+        .catch((e) => {
+          console.log("error catch with then / catch:", e);
+          $q.notify({
+            message: `Fehler beim Laden der Daten: ${e}`,
+            type: "negative",
+          });
+        })
+        .finally(() => {
+          console.log("Run finally block...");
+          $q.loading.hide();
+        });
     }
 
     const colorClasses = {
@@ -500,6 +513,7 @@ export default {
     }
 
     return {
+      raiseError,
       foo,
       currentDate,
       intervalYAxisLr,
