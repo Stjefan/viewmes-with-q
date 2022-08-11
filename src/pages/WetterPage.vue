@@ -240,6 +240,7 @@ export default {
 
     function updateChartData(updateData) {
       const myTraces = [];
+      const graphDiv = document.getElementById("mete-charts");
       clearChart();
 
       const properties = [

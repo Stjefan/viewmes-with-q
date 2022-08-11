@@ -7,9 +7,9 @@ import { boot } from "quasar/wrappers";
 
 const url = "http://localhost:8086";
 const token =
-  // "S3Ou7vqKvLFCkqDG8UgPnGnBVzvR5VngWc3HCzaW2qXQlEvr9-ggfuXIKXzKvzkOozd0kNnKCsZxhDywNG8gTA=="; // KUFI-Server
-  //"QRNlK60Noca9m2WIjgUSHaE3C1PGnzNZ-qHY1MajJBSDIjkpJdxPwJ1bG11cOYJREvLgEp8D5h_xH1AhvgvBww==";
-  "8Zy8LG2UcsS96F3WqPnW7yjUXGVso64AfOfVe6Wiqw4-ysUkWBvq3jKB1W8jbfoZVGhD9IJ7wazX-uSCtHiGWw==";
+  "S3Ou7vqKvLFCkqDG8UgPnGnBVzvR5VngWc3HCzaW2qXQlEvr9-ggfuXIKXzKvzkOozd0kNnKCsZxhDywNG8gTA=="; // KUFI-Server
+//"QRNlK60Noca9m2WIjgUSHaE3C1PGnzNZ-qHY1MajJBSDIjkpJdxPwJ1bG11cOYJREvLgEp8D5h_xH1AhvgvBww==";
+// "8Zy8LG2UcsS96F3WqPnW7yjUXGVso64AfOfVe6Wiqw4-ysUkWBvq3jKB1W8jbfoZVGhD9IJ7wazX-uSCtHiGWw==";
 const org = "kufi";
 const queryApi = new InfluxDB({ url, token }).getQueryApi(org);
 
