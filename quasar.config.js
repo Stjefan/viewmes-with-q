@@ -14,7 +14,7 @@ const { configure } = require("quasar/wrappers");
 
 console.log(process.env);
 
-const bezeichnungZugeordnetesProjekt = "Immendingen"; // ; // "Mannheim";
+const bezeichnungZugeordnetesProjekt = "Immendingen"; // ; // "Mannheim"; //
 module.exports = configure(function (ctx) {
   return {
     // https://v2.quasar.dev/quasar-cli-webpack/supporting-ts
