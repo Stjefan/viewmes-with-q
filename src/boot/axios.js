@@ -12,42 +12,45 @@ import {
 import { Notify } from "quasar";
 
 import { terzProps } from "./utility";
-const api = setupCache(
-  // axios instance
-  axios.create(),
+if (false) {
+  const api = setupCache(
+    // axios instance
+    axios.create(),
 
-  // All options with their default values
-  {
-    // The storage to save the cache data. There are more available by default.
-    //
-    // https://axios-cache-interceptor.js.org/#/pages/storages
-    storage: buildMemoryStorage(),
+    // All options with their default values
+    {
+      // The storage to save the cache data. There are more available by default.
+      //
+      // https://axios-cache-interceptor.js.org/#/pages/storages
+      storage: buildMemoryStorage(),
 
-    // The mechanism to generate a unique key for each request.
-    //
-    // https://axios-cache-interceptor.js.org/#/pages/request-id
-    generateKey: defaultKeyGenerator,
+      // The mechanism to generate a unique key for each request.
+      //
+      // https://axios-cache-interceptor.js.org/#/pages/request-id
+      generateKey: defaultKeyGenerator,
 
-    // The mechanism to interpret headers (when cache.interpretHeader is true).
-    //
-    // https://axios-cache-interceptor.js.org/#/pages/global-configuration?id=headerinterpreter
-    headerInterpreter: defaultHeaderInterpreter,
-    cache: {
-      update: {
-        ["lafeq"]: (cachedValue, response) => {
-          console.log("from update");
+      // The mechanism to interpret headers (when cache.interpretHeader is true).
+      //
+      // https://axios-cache-interceptor.js.org/#/pages/global-configuration?id=headerinterpreter
+      headerInterpreter: defaultHeaderInterpreter,
+      cache: {
+        update: {
+          ["lafeq"]: (cachedValue, response) => {
+            console.log("from update");
+          },
         },
       },
-    },
 
-    // The function that will receive debug information.
-    // NOTE: For this to work, you need to enable development mode.
-    //
-    // https://axios-cache-interceptor.js.org/#/pages/development-mode
-    // https://axios-cache-interceptor.js.org/#/pages/global-configuration?id=debug
-    debug: undefined,
-  }
-);
+      // The function that will receive debug information.
+      // NOTE: For this to work, you need to enable development mode.
+      //
+      // https://axios-cache-interceptor.js.org/#/pages/development-mode
+      // https://axios-cache-interceptor.js.org/#/pages/global-configuration?id=debug
+      debug: undefined,
+    }
+  );
+}
+const api = axios.create({ baseURL: "https://api.example.com" });
 
 function lrInterceptor(response) {
   console.log("show");
@@ -141,6 +144,7 @@ function terzInterceptor(response) {
   console.log("Terz HANDLER");
 }
 
+/*
 api.interceptors.response.use(
   function (response) {
     console.log("response.config.url", response.config.url);
@@ -180,6 +184,7 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+*/
 
 function aussortierungInterceptor(response) {
   console.log("show");
